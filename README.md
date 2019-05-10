@@ -1,2 +1,2 @@
 # mobilenetv3
-mobilenetv3, tensorflow
+A Tensorflow implementation of MobileNetV3
