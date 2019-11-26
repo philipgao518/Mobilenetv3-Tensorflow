@@ -7,6 +7,11 @@ weight_decay=1e-5
 def relu6(x, name='relu6'):
     return tf.nn.relu6(x, name)
 
+def hard_swish(x,name='hard_swish'):
+    with tf.name_scope(name):
+        h_swish = x*tf.nn.relu6(x+3)/6
+        return h_swish
+
                     #0.997
 def batch_norm(x, momentum=0.997, epsilon=1e-3, train=True, name='bn'):
     return tf.layers.batch_normalization(x,
@@ -31,11 +36,14 @@ def conv2d(input_, output_dim, k_h, k_w, d_h, d_w, stddev=0.09, name='conv2d', b
         return conv
 
 
-def conv2d_block(input, out_dim, k, s, is_train, name):
+def conv2d_block(input, out_dim, k, s, is_train, name, h_swish=False):
     with tf.name_scope(name), tf.variable_scope(name):
         net = conv2d(input, out_dim, k, k, s, s, name='conv2d')
         net = batch_norm(net, train=is_train, name='bn')
-        net = relu6(net)
+        if h_swish == True:
+            net = hard_swish(net)
+        else:
+            net = relu6(net)
         return net
 
 
@@ -73,21 +81,21 @@ def global_avg(x,s=1):
         net=tf.layers.average_pooling2d(x, x.get_shape()[1:-1], s)
         return net
 
-def hard_swish(x,name='hard_swish'):
-    with tf.name_scope(name):
-        h_swish = x*tf.nn.relu6(x+3)/6
-        return h_swish
 
 def hard_sigmoid(x,name='hard_sigmoid'):
     with tf.name_scope(name):
         h_sigmoid = tf.nn.relu6(x+3)/6
         return h_sigmoid
 
-def conv2d_hs(input, output_dim, is_train, name, bias=False):
+def conv2d_hs(input, output_dim, is_train, name, bias=False,se=False):
     with tf.name_scope(name), tf.variable_scope(name):
         out=conv_1x1(input, output_dim, bias=bias, name='pwb')
         out=batch_norm(out, train=is_train, name='bn')
         out=hard_swish(out)
+        # squeeze and excitation
+        if se:
+            channel = int(np.shape(out)[-1])
+            out = squeeze_excitation_layer(out,out_dim=channel, ratio=4, layer_name='se_block')
         return out
 
 def conv2d_NBN_hs(input, output_dim, name, bias=False):
@@ -149,38 +157,6 @@ def mnv3_block(input, k_s, expansion_ratio, output_dim, stride, is_train, name, 
         return net
 
 
-def separable_conv(input, k_size, output_dim, stride, pad='SAME', channel_multiplier=1, name='sep_conv', bias=False):
-    with tf.name_scope(name), tf.variable_scope(name):
-        in_channel = input.get_shape().as_list()[-1]
-        dwise_filter = tf.get_variable('dw', [k_size, k_size, in_channel, channel_multiplier],
-                  regularizer=tf.contrib.layers.l2_regularizer(weight_decay),
-                  initializer=tf.truncated_normal_initializer(stddev=0.09))
-
-        pwise_filter = tf.get_variable('pw', [1, 1, in_channel*channel_multiplier, output_dim],
-                  regularizer=tf.contrib.layers.l2_regularizer(weight_decay),
-                  initializer=tf.truncated_normal_initializer(stddev=0.09))
-        strides = [1,stride, stride,1]
-
-        conv=tf.nn.separable_conv2d(input,dwise_filter,pwise_filter,strides,padding=pad, name=name)
-        if bias:
-            biases = tf.get_variable('bias', [output_dim],initializer=tf.constant_initializer(0.0))
-            conv = tf.nn.bias_add(conv, biases)
-        return conv
-
-
 def flatten(x):
     #flattened=tf.reshape(input,[x.get_shape().as_list()[0], -1])  # or, tf.layers.flatten(x)
     return tf.contrib.layers.flatten(x)
-
-
-def pad2d(inputs, pad=(0, 0), mode='CONSTANT'):
-    paddings = [[0, 0], [pad[0], pad[0]], [pad[1], pad[1]], [0, 0]]
-    net = tf.pad(inputs, paddings, mode=mode)
-    return net
-
-def Dropout(x, rate, training,name='Dropout') :
-    if training==True:
-        return tf.contrib.slim.dropout(x, keep_prob=rate, scope=name)
-        #return tf.layers.dropout(inputs=x, rate=rate, training=training, name=name)
-    else:
-        return tf.contrib.slim.dropout(x, keep_prob=1.0, scope=name)
