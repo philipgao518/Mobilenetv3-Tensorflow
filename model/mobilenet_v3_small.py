@@ -14,7 +14,7 @@ def mobilenetv3_small(inputs, num_classes, is_train=True):
         net = mnv3_block(net, 3, 72, 24, 2, is_train, name='bneck3_1', h_swish=False, ratio=reduction_ratio, se=False)  # size/8
         net = mnv3_block(net, 3, 88, 24, 1, is_train, name='bneck3_2', h_swish=False, ratio=reduction_ratio, se=False)
 
-        net = mnv3_block(net, 5, 96, 40, 2, is_train, name='bneck4_1', h_swish=True, ratio=reduction_ratio, se=True)  # size/16
+        net = mnv3_block(net, 5, 96, 40, 1, is_train, name='bneck4_1', h_swish=True, ratio=reduction_ratio, se=True)  # size/16
         net = mnv3_block(net, 5, 240, 40, 1, is_train, name='bneck4_2', h_swish=True, ratio=reduction_ratio, se=True)
         net = mnv3_block(net, 5, 240, 40, 1, is_train, name='bneck4_3', h_swish=True, ratio=reduction_ratio, se=True)
 
