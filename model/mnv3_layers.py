@@ -40,7 +40,7 @@ def conv2d_block(input, out_dim, k, s, is_train, name, h_swish=False):
     with tf.name_scope(name), tf.variable_scope(name):
         net = conv2d(input, out_dim, k, k, s, s, name='conv2d')
         net = batch_norm(net, train=is_train, name='bn')
-        if h_swish == 1:
+        if h_swish == True:
             net = hard_swish(net)
         else:
             net = relu6(net)
